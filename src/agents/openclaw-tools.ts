@@ -16,8 +16,13 @@ import { createSessionsHistoryTool } from "./tools/sessions-history-tool.js";
 import { createSessionsListTool } from "./tools/sessions-list-tool.js";
 import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
+import {
+  createWebFetchTool,
+  createWebSearchTool,
+  createKagiFastGPTTool,
+  createKagiSummarizeTool,
+} from "./tools/web-tools.js";
 import { createTtsTool } from "./tools/tts-tool.js";
-import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
 
 export function createOpenClawTools(options?: {
   sandboxBrowserBridgeUrl?: string;
@@ -67,6 +72,14 @@ export function createOpenClawTools(options?: {
     sandboxed: options?.sandboxed,
   });
   const webFetchTool = createWebFetchTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
+  const kagiFastGPTTool = createKagiFastGPTTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
+  const kagiSummarizeTool = createKagiSummarizeTool({
     config: options?.config,
     sandboxed: options?.sandboxed,
   });
@@ -136,6 +149,8 @@ export function createOpenClawTools(options?: {
     }),
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
+    ...(kagiFastGPTTool ? [kagiFastGPTTool] : []),
+    ...(kagiSummarizeTool ? [kagiSummarizeTool] : []),
     ...(imageTool ? [imageTool] : []),
   ];
 
