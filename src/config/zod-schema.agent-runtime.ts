@@ -226,7 +226,7 @@ export const ToolPolicySchema = ToolPolicyBaseSchema.superRefine((value, ctx) =>
 export const ToolsWebSearchSchema = z
   .object({
     enabled: z.boolean().optional(),
-    provider: z.union([z.literal("brave"), z.literal("perplexity"), z.literal("grok")]).optional(),
+    provider: z.union([z.literal("brave"), z.literal("perplexity"), z.literal("kagi"), z.literal("grok")]).optional(),
     apiKey: z.string().optional().register(sensitive),
     maxResults: z.number().int().positive().optional(),
     timeoutSeconds: z.number().int().positive().optional(),
@@ -239,6 +239,14 @@ export const ToolsWebSearchSchema = z
       })
       .strict()
       .optional(),
+    kagi: z
+      .object({
+        apiKey: z.string().optional(),
+        includeThumbnails: z.boolean().optional(),
+        includeRelated: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     grok: z
       .object({
         apiKey: z.string().optional().register(sensitive),
@@ -247,6 +255,31 @@ export const ToolsWebSearchSchema = z
       })
       .strict()
       .optional(),
+  })
+  .strict()
+  .optional();
+
+export const ToolsKagiFastGPTSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    apiKey: z.string().optional(),
+    cache: z.boolean().optional(),
+    timeoutSeconds: z.number().int().positive().optional(),
+    cacheTtlMinutes: z.number().nonnegative().optional(),
+  })
+  .strict()
+  .optional();
+
+export const ToolsKagiSummarizerSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    apiKey: z.string().optional(),
+    engine: z.union([z.literal("cecil"), z.literal("agnes"), z.literal("muriel")]).optional(),
+    summaryType: z.union([z.literal("summary"), z.literal("takeaway")]).optional(),
+    targetLanguage: z.string().optional(),
+    cache: z.boolean().optional(),
+    timeoutSeconds: z.number().int().positive().optional(),
+    cacheTtlMinutes: z.number().nonnegative().optional(),
   })
   .strict()
   .optional();
@@ -268,6 +301,8 @@ export const ToolsWebSchema = z
   .object({
     search: ToolsWebSearchSchema,
     fetch: ToolsWebFetchSchema,
+    fastgpt: ToolsKagiFastGPTSchema,
+    summarizer: ToolsKagiSummarizerSchema,
   })
   .strict()
   .optional();
