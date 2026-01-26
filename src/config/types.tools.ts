@@ -319,8 +319,8 @@ export type ToolsConfig = {
     search?: {
       /** Enable web search tool (default: true when API key is present). */
       enabled?: boolean;
-      /** Search provider ("brave" or "perplexity"). */
-      provider?: "brave" | "perplexity";
+      /** Search provider ("brave", "perplexity", or "kagi"). */
+      provider?: "brave" | "perplexity" | "kagi";
       /** Brave Search API key (optional; defaults to BRAVE_API_KEY env var). */
       apiKey?: string;
       /** Default search results count (1-10). */
@@ -338,6 +338,47 @@ export type ToolsConfig = {
         /** Model to use (defaults to "perplexity/sonar-pro"). */
         model?: string;
       };
+      /** Kagi-specific configuration (used when provider="kagi"). */
+      kagi?: {
+        /** Kagi API key (defaults to KAGI_API_KEY env var). */
+        apiKey?: string;
+        /** Include thumbnails in search results (default: false). */
+        includeThumbnails?: boolean;
+        /** Include related searches in results (default: false). */
+        includeRelated?: boolean;
+      };
+    };
+    /** Kagi FastGPT configuration (AI-powered answers with citations). */
+    fastgpt?: {
+      /** Enable Kagi FastGPT tool (default: true when API key is present). */
+      enabled?: boolean;
+      /** Kagi API key (defaults to KAGI_API_KEY env var). */
+      apiKey?: string;
+      /** Allow cached responses (default: true). */
+      cache?: boolean;
+      /** Timeout in seconds (default: 30). */
+      timeoutSeconds?: number;
+      /** Cache TTL in minutes for responses. */
+      cacheTtlMinutes?: number;
+    };
+    /** Kagi Universal Summarizer configuration. */
+    summarizer?: {
+      /** Enable Kagi Summarizer tool (default: true when API key is present). */
+      enabled?: boolean;
+      /** Kagi API key (defaults to KAGI_API_KEY env var). */
+      apiKey?: string;
+      /** Default summarization engine: cecil (fast), agnes (formal), muriel (enterprise). */
+      engine?: "cecil" | "agnes" | "muriel";
+      /** Default summary type: summary (prose) or takeaway (bullet points). */
+      summaryType?: "summary" | "takeaway";
+      /** Default target language code (e.g., "EN", "ES", "RU"). */
+      targetLanguage?: string;
+      /** Allow cached responses (default: true). */
+      cache?: boolean;
+      /** Timeout in seconds (default: 60). */
+      timeoutSeconds?: number;
+      /** Cache TTL in minutes for summaries. */
+      cacheTtlMinutes?: number;
     };
     fetch?: {
       /** Enable web fetch tool (default: true). */

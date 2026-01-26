@@ -101,6 +101,27 @@ export function readNumberParam(
   return integer ? Math.trunc(value) : value;
 }
 
+export function readBoolParam(
+  params: Record<string, unknown>,
+  key: string,
+  options: { required?: boolean; label?: string } = {},
+): boolean | undefined {
+  const { required = false, label = key } = options;
+  const raw = params[key];
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim().toLowerCase();
+    if (trimmed === "true" || trimmed === "1" || trimmed === "yes") return true;
+    if (trimmed === "false" || trimmed === "0" || trimmed === "no") return false;
+  }
+  if (typeof raw === "number") {
+    if (raw === 1) return true;
+    if (raw === 0) return false;
+  }
+  if (required) throw new Error(`${label} required`);
+  return undefined;
+}
+
 export function readStringArrayParam(
   params: Record<string, unknown>,
   key: string,
