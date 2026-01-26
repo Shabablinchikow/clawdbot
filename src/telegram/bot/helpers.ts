@@ -214,6 +214,8 @@ export function describeReplyTarget(msg: TelegramMessage): TelegramReplyTarget |
         body = "<media:audio>";
       } else if (reply.document) {
         body = "<media:document>";
+      } else if (reply.sticker) {
+        body = "<media:sticker>";
       } else {
         const locationData = extractTelegramLocation(reply);
         if (locationData) {

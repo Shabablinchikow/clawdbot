@@ -52,6 +52,11 @@ import {
   hasBotMention,
   resolveTelegramForumThreadId,
 } from "./bot/helpers.js";
+import {
+  extractCustomEmojiEntities,
+  resolveCustomEmojis,
+  expandCustomEmojisInText,
+} from "./custom-emoji.js";
 import { upsertTelegramPairingRequest } from "./pairing-store.js";
 
 type TelegramMediaRef = {
@@ -368,7 +373,22 @@ export const buildTelegramMessageContext = async ({
   const locationData = extractTelegramLocation(msg);
   const locationText = locationData ? formatLocationText(locationData) : undefined;
   const rawTextSource = msg.text ?? msg.caption ?? "";
-  const rawText = expandTextLinks(rawTextSource, msg.entities ?? msg.caption_entities).trim();
+  let rawText = expandTextLinks(rawTextSource, msg.entities ?? msg.caption_entities).trim();
+
+  // Process custom emoji entities - expand with annotations like [😂:SetName]
+  const entities = msg.entities ?? msg.caption_entities;
+  const customEmojiEntities = extractCustomEmojiEntities(entities);
+  if (customEmojiEntities.length > 0) {
+    try {
+      const emojiIds = customEmojiEntities.map((e) => e.custom_emoji_id);
+      const resolved = await resolveCustomEmojis(bot, emojiIds);
+      rawText = expandCustomEmojisInText(rawText, customEmojiEntities, resolved);
+    } catch (err) {
+      // If custom emoji resolution fails, continue with original text
+      logVerbose(`Failed to resolve custom emojis: ${err}`);
+    }
+  }
+
   let rawBody = [rawText, locationText].filter(Boolean).join("\n").trim();
   if (!rawBody) {
     rawBody = placeholder;

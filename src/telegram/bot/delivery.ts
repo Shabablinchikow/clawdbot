@@ -427,6 +427,8 @@ export async function resolveMedia(
     placeholder = "<media:video>";
   } else if (msg.audio || msg.voice) {
     placeholder = "<media:audio>";
+  } else if (msg.sticker) {
+    placeholder = "<media:sticker>";
   }
   return { path: saved.path, contentType: saved.contentType, placeholder };
 }
