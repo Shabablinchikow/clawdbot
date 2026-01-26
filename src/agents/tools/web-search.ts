@@ -18,7 +18,7 @@ import {
   writeCache,
 } from "./web-shared.js";
 
-const SEARCH_PROVIDERS = ["brave", "perplexity", "grok"] as const;
+const SEARCH_PROVIDERS = ["brave", "perplexity", "kagi", "grok"] as const;
 const DEFAULT_SEARCH_COUNT = 5;
 const MAX_SEARCH_COUNT = 10;
 
@@ -28,6 +28,7 @@ const PERPLEXITY_DIRECT_BASE_URL = "https://api.perplexity.ai";
 const DEFAULT_PERPLEXITY_MODEL = "perplexity/sonar-pro";
 const PERPLEXITY_KEY_PREFIXES = ["pplx-"];
 const OPENROUTER_KEY_PREFIXES = ["sk-or-"];
+const KAGI_SEARCH_ENDPOINT = "https://kagi.com/api/v0/search";
 
 const XAI_API_ENDPOINT = "https://api.x.ai/v1/responses";
 const DEFAULT_GROK_MODEL = "grok-4-1-fast";
@@ -144,6 +145,40 @@ type PerplexitySearchResponse = {
 
 type PerplexityBaseUrlHint = "direct" | "openrouter";
 
+type KagiConfig = {
+  apiKey?: string;
+  includeThumbnails?: boolean;
+  includeRelated?: boolean;
+};
+
+type KagiThumbnail = {
+  url?: string;
+  width?: number | null;
+  height?: number | null;
+};
+
+type KagiSearchResult = {
+  t: number;
+  rank?: number;
+  url?: string;
+  title?: string;
+  snippet?: string;
+  published?: string;
+  thumbnail?: KagiThumbnail;
+  list?: string[]; // For related searches (t=1)
+};
+
+type KagiSearchResponse = {
+  meta?: {
+    id?: string;
+    node?: string;
+    ms?: number;
+    api_balance?: number;
+  };
+  data?: KagiSearchResult[];
+  error?: { code?: number; msg?: string };
+};
+
 function extractGrokContent(data: GrokSearchResponse): {
   text: string | undefined;
   annotationCitations: string[];
@@ -219,6 +254,14 @@ function missingSearchKeyPayload(provider: (typeof SEARCH_PROVIDERS)[number]) {
       docs: "https://docs.openclaw.ai/tools/web",
     };
   }
+  if (provider === "kagi") {
+    return {
+      error: "missing_kagi_api_key",
+      message:
+        "web_search (kagi) needs an API key. Set KAGI_API_KEY in the Gateway environment, or configure tools.web.search.kagi.apiKey.",
+      docs: "https://help.kagi.com/kagi/api/overview.html",
+    };
+  }
   if (provider === "grok") {
     return {
       error: "missing_xai_api_key",
@@ -242,6 +285,9 @@ function resolveSearchProvider(search?: WebSearchConfig): (typeof SEARCH_PROVIDE
   if (raw === "perplexity") {
     return "perplexity";
   }
+  if (raw === "kagi") {
+    return "kagi";
+  }
   if (raw === "grok") {
     return "grok";
   }
@@ -260,6 +306,21 @@ function resolvePerplexityConfig(search?: WebSearchConfig): PerplexityConfig {
     return {};
   }
   return perplexity as PerplexityConfig;
+}
+
+function resolveKagiConfig(search?: WebSearchConfig): KagiConfig {
+  if (!search || typeof search !== "object") return {};
+  const kagi = "kagi" in search ? search.kagi : undefined;
+  if (!kagi || typeof kagi !== "object") return {};
+  return kagi as KagiConfig;
+}
+
+function resolveKagiApiKey(kagi?: KagiConfig): string | undefined {
+  const fromConfig = normalizeApiKey(kagi?.apiKey);
+  if (fromConfig) return fromConfig;
+  const fromEnv = normalizeApiKey(process.env.KAGI_API_KEY);
+  if (fromEnv) return fromEnv;
+  return undefined;
 }
 
 function resolvePerplexityApiKey(perplexity?: PerplexityConfig): {
@@ -520,6 +581,41 @@ async function runPerplexitySearch(params: {
   return { content, citations };
 }
 
+type KagiSearchResultMapped = {
+  title: string;
+  url: string;
+  description: string;
+  published?: string;
+  siteName?: string;
+  thumbnail?: {
+    url: string;
+    width?: number;
+    height?: number;
+  };
+};
+
+async function runKagiSearch(params: {
+  query: string;
+  count: number;
+  apiKey: string;
+  timeoutSeconds: number;
+  includeThumbnails?: boolean;
+  includeRelated?: boolean;
+}): Promise<{
+  results: KagiSearchResultMapped[];
+  relatedSearches?: string[];
+  apiBalance?: number;
+}> {
+  const url = new URL(KAGI_SEARCH_ENDPOINT);
+  url.searchParams.set("q", params.query);
+  url.searchParams.set("limit", String(params.count));
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bot ${params.apiKey}`,
+      Accept: "application/json",
+    },
 async function runGrokSearch(params: {
   query: string;
   apiKey: string;
@@ -586,15 +682,19 @@ async function runWebSearch(params: {
   freshness?: string;
   perplexityBaseUrl?: string;
   perplexityModel?: string;
+  kagiIncludeThumbnails?: boolean;
+  kagiIncludeRelated?: boolean;
   grokModel?: string;
   grokInlineCitations?: boolean;
 }): Promise<Record<string, unknown>> {
   const cacheKey = normalizeCacheKey(
     params.provider === "brave"
       ? `${params.provider}:${params.query}:${params.count}:${params.country || "default"}:${params.search_lang || "default"}:${params.ui_lang || "default"}:${params.freshness || "default"}`
-      : params.provider === "perplexity"
-        ? `${params.provider}:${params.query}:${params.perplexityBaseUrl ?? DEFAULT_PERPLEXITY_BASE_URL}:${params.perplexityModel ?? DEFAULT_PERPLEXITY_MODEL}:${params.freshness || "default"}`
-        : `${params.provider}:${params.query}:${params.grokModel ?? DEFAULT_GROK_MODEL}:${String(params.grokInlineCitations ?? false)}`,
+: params.provider === "kagi"
+        ? `${params.provider}:${params.query}:${params.count}:${params.kagiIncludeThumbnails ?? false}:${params.kagiIncludeRelated ?? false}`
+        : params.provider === "perplexity"
+          ? `${params.provider}:${params.query}:${params.perplexityBaseUrl ?? DEFAULT_PERPLEXITY_BASE_URL}:${params.perplexityModel ?? DEFAULT_PERPLEXITY_MODEL}:${params.freshness || "default"}`
+          : `${params.provider}:${params.query}:${params.grokModel ?? DEFAULT_GROK_MODEL}:${String(params.grokInlineCitations ?? false)}`,
   );
   const cached = readCache(SEARCH_CACHE, cacheKey);
   if (cached) {
@@ -627,6 +727,33 @@ async function runWebSearch(params: {
       content: wrapWebContent(content),
       citations,
     };
+    writeCache(SEARCH_CACHE, cacheKey, payload, params.cacheTtlMs);
+    return payload;
+  }
+
+  if (params.provider === "kagi") {
+    const { results, relatedSearches, apiBalance } = await runKagiSearch({
+      query: params.query,
+      count: params.count,
+      apiKey: params.apiKey,
+      timeoutSeconds: params.timeoutSeconds,
+      includeThumbnails: params.kagiIncludeThumbnails,
+      includeRelated: params.kagiIncludeRelated,
+    });
+
+    const payload: Record<string, unknown> = {
+      query: params.query,
+      provider: params.provider,
+      count: results.length,
+      tookMs: Date.now() - start,
+      apiBalance,
+      results,
+    };
+
+    if (relatedSearches && relatedSearches.length > 0) {
+      payload.relatedSearches = relatedSearches;
+    }
+
     writeCache(SEARCH_CACHE, cacheKey, payload, params.cacheTtlMs);
     return payload;
   }
@@ -738,11 +865,14 @@ export function createWebSearchTool(options?: {
 
   const provider = resolveSearchProvider(search);
   const perplexityConfig = resolvePerplexityConfig(search);
+  const kagiConfig = resolveKagiConfig(search);
   const grokConfig = resolveGrokConfig(search);
 
   const description =
     provider === "perplexity"
       ? "Search the web using Perplexity Sonar (direct or via OpenRouter). Returns AI-synthesized answers with citations from real-time web search."
+      : provider === "kagi"
+        ? "Search the web using Kagi Search API. Premium ad-free search with high-quality results. Returns titles, URLs, snippets, and optionally thumbnails and related searches."
       : provider === "grok"
         ? "Search the web using xAI Grok. Returns AI-synthesized answers with citations from real-time web search."
         : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
@@ -755,9 +885,12 @@ export function createWebSearchTool(options?: {
     execute: async (_toolCallId, args) => {
       const perplexityAuth =
         provider === "perplexity" ? resolvePerplexityApiKey(perplexityConfig) : undefined;
+      const kagiApiKey = provider === "kagi" ? resolveKagiApiKey(kagiConfig) : undefined;
       const apiKey =
         provider === "perplexity"
           ? perplexityAuth?.apiKey
+          : provider === "kagi"
+            ? kagiApiKey
           : provider === "grok"
             ? resolveGrokApiKey(grokConfig)
             : resolveSearchApiKey(search);
@@ -806,6 +939,8 @@ export function createWebSearchTool(options?: {
           perplexityAuth?.apiKey,
         ),
         perplexityModel: resolvePerplexityModel(perplexityConfig),
+        kagiIncludeThumbnails: kagiConfig.includeThumbnails,
+        kagiIncludeRelated: kagiConfig.includeRelated,
         grokModel: resolveGrokModel(grokConfig),
         grokInlineCitations: resolveGrokInlineCitations(grokConfig),
       });
