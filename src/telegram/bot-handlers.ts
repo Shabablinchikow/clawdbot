@@ -716,28 +716,30 @@ export const registerTelegramHandlers = ({
           ]
         : [];
 
-      // Download custom emoji files for AI analysis (overkill mode)
-      try {
-        const entities = msg.entities ?? msg.caption_entities;
-        const customEmojiEntities = extractCustomEmojiEntities(entities);
-        if (customEmojiEntities.length > 0) {
-          const emojiIds = customEmojiEntities.map((e) => e.custom_emoji_id);
-          const resolved = await resolveCustomEmojis(bot, emojiIds);
-          const emojiFiles = await downloadCustomEmojiFiles(
-            bot,
-            opts.token,
-            resolved,
-            mediaMaxBytes,
-            opts.proxyFetch,
-          );
-          for (const emoji of emojiFiles) {
-            if (emoji.filePath) {
-              allMedia.push({ path: emoji.filePath, contentType: emoji.contentType });
+      // Download custom emoji files for AI analysis (requires customEmojiVision: true)
+      if (telegramCfg?.customEmojiVision) {
+        try {
+          const entities = msg.entities ?? msg.caption_entities;
+          const customEmojiEntities = extractCustomEmojiEntities(entities);
+          if (customEmojiEntities.length > 0) {
+            const emojiIds = customEmojiEntities.map((e) => e.custom_emoji_id);
+            const resolved = await resolveCustomEmojis(bot, emojiIds);
+            const emojiFiles = await downloadCustomEmojiFiles(
+              bot,
+              opts.token,
+              resolved,
+              mediaMaxBytes,
+              opts.proxyFetch,
+            );
+            for (const emoji of emojiFiles) {
+              if (emoji.filePath) {
+                allMedia.push({ path: emoji.filePath, contentType: emoji.contentType });
+              }
             }
           }
+        } catch (emojiErr) {
+          logVerbose(`Failed to download custom emoji files: ${emojiErr}`);
         }
-      } catch (emojiErr) {
-        logVerbose(`Failed to download custom emoji files: ${emojiErr}`);
       }
       const senderId = msg.from?.id ? String(msg.from.id) : "";
       const conversationKey =
