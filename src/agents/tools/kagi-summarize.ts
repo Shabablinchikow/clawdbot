@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { Type } from "@sinclair/typebox";
 
-import type { ClawdbotConfig } from "../../config/config.js";
+import type { MoltbotConfig } from "../../config/config.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readBoolParam, readStringParam } from "./common.js";
 import {
@@ -94,7 +94,7 @@ const KagiSummarizeSchema = Type.Object({
   ),
 });
 
-type SummarizerConfig = NonNullable<NonNullable<ClawdbotConfig["tools"]>["web"]>["summarizer"];
+type SummarizerConfig = NonNullable<NonNullable<MoltbotConfig["tools"]>["web"]>["summarizer"];
 
 type KagiSummarizeResponse = {
   meta?: {
@@ -110,7 +110,7 @@ type KagiSummarizeResponse = {
   error?: { code?: number; msg?: string };
 };
 
-function resolveSummarizerConfig(cfg?: ClawdbotConfig): SummarizerConfig {
+function resolveSummarizerConfig(cfg?: MoltbotConfig): SummarizerConfig {
   return cfg?.tools?.web?.summarizer;
 }
 
@@ -291,7 +291,7 @@ async function runSummarize(params: {
 }
 
 export function createKagiSummarizeTool(options?: {
-  config?: ClawdbotConfig;
+  config?: MoltbotConfig;
   sandboxed?: boolean;
 }): AnyAgentTool | null {
   const config = resolveSummarizerConfig(options?.config);

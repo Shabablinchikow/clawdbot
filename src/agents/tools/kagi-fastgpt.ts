@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 
-import type { ClawdbotConfig } from "../../config/config.js";
+import type { MoltbotConfig } from "../../config/config.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readBoolParam, readStringParam } from "./common.js";
 import {
@@ -27,7 +27,7 @@ const KagiFastGPTSchema = Type.Object({
   ),
 });
 
-type FastGPTConfig = NonNullable<NonNullable<ClawdbotConfig["tools"]>["web"]>["fastgpt"];
+type FastGPTConfig = NonNullable<NonNullable<MoltbotConfig["tools"]>["web"]>["fastgpt"];
 
 type KagiFastGPTReference = {
   title?: string;
@@ -50,7 +50,7 @@ type KagiFastGPTResponse = {
   error?: { code?: number; msg?: string };
 };
 
-function resolveFastGPTConfig(cfg?: ClawdbotConfig): FastGPTConfig {
+function resolveFastGPTConfig(cfg?: MoltbotConfig): FastGPTConfig {
   return cfg?.tools?.web?.fastgpt;
 }
 
@@ -152,7 +152,7 @@ async function runFastGPT(params: {
 }
 
 export function createKagiFastGPTTool(options?: {
-  config?: ClawdbotConfig;
+  config?: MoltbotConfig;
   sandboxed?: boolean;
 }): AnyAgentTool | null {
   const config = resolveFastGPTConfig(options?.config);
