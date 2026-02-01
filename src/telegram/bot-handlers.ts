@@ -65,7 +65,11 @@ export const registerTelegramHandlers = ({
   type TelegramDebounceEntry = {
     ctx: unknown;
     msg: TelegramMessage;
-    allMedia: Array<{ path: string; contentType?: string }>;
+    allMedia: Array<{
+      path: string;
+      contentType?: string;
+      stickerMetadata?: { emoji?: string; setName?: string; fileId?: string };
+    }>;
     storeAllowFrom: string[];
     debounceKey: string | null;
     botUsername?: string;
@@ -733,7 +737,11 @@ export const registerTelegramHandlers = ({
             );
             for (const emoji of emojiFiles) {
               if (emoji.filePath) {
-                allMedia.push({ path: emoji.filePath, contentType: emoji.contentType });
+                allMedia.push({
+                  path: emoji.filePath,
+                  contentType: emoji.contentType,
+                  stickerMetadata: undefined,
+                });
               }
             }
           }

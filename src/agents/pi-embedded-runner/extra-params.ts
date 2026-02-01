@@ -72,10 +72,11 @@ function createStreamFnWithExtraParams(
   if (typeof extraParams.maxTokens === "number") {
     streamParams.maxTokens = extraParams.maxTokens;
   }
-  const cacheRetention = resolveCacheRetention(extraParams, provider);
-  if (cacheRetention) {
-    streamParams.cacheRetention = cacheRetention;
-  }
+  // cacheRetention was removed from SimpleStreamOptions in newer pi-ai versions
+  // const cacheRetention = resolveCacheRetention(extraParams, provider);
+  // if (cacheRetention) {
+  //   streamParams.cacheRetention = cacheRetention;
+  // }
 
   if (Object.keys(streamParams).length === 0) {
     return undefined;
