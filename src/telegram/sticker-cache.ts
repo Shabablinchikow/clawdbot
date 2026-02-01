@@ -189,6 +189,7 @@ export interface DescribeStickerParams {
   cfg: OpenClawConfig;
   agentDir?: string;
   agentId?: string;
+  contentType?: string;
 }
 
 /**
@@ -205,5 +206,6 @@ export async function describeStickerImage(params: DescribeStickerParams): Promi
     prompt: STICKER_DESCRIPTION_PROMPT,
     fileName: "sticker.webp",
     logPrefix: "telegram",
+    contentType: params.contentType,
   });
 }

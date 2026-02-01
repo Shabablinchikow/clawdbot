@@ -1,5 +1,4 @@
 import { resolveAgentDir } from "../agents/agent-scope.js";
-// @ts-nocheck
 import {
   findModelInCatalog,
   loadModelCatalog,
@@ -181,6 +180,7 @@ export const dispatchTelegramMessage = async ({
         cfg,
         agentDir,
         agentId: route.agentId,
+        contentType: ctxPayload.MediaType,
       });
     }
     if (description) {
@@ -226,11 +226,14 @@ export const dispatchTelegramMessage = async ({
     const agentDir = resolveAgentDir(cfg, route.agentId);
     const descriptions: string[] = [];
 
-    // Build a map of customEmojiId -> filePath for reliable lookup
-    const emojiIdToPath = new Map<string, string>();
+    // Build a map of customEmojiId -> {filePath, contentType} for reliable lookup
+    const emojiIdToMedia = new Map<string, { path: string; contentType?: string }>();
     for (const emoji of customEmojis) {
       if (emoji.filePath && emoji.customEmojiId) {
-        emojiIdToPath.set(emoji.customEmojiId, emoji.filePath);
+        emojiIdToMedia.set(emoji.customEmojiId, {
+          path: emoji.filePath,
+          contentType: emoji.contentType,
+        });
       }
     }
 
@@ -242,18 +245,19 @@ export const dispatchTelegramMessage = async ({
         continue;
       }
 
-      // Find the media path for this custom emoji using the ID map
-      const mediaPath = emojiIdToPath.get(emoji.customEmojiId);
-      if (!mediaPath) {
+      // Find the media for this custom emoji using the ID map
+      const media = emojiIdToMedia.get(emoji.customEmojiId);
+      if (!media) {
         continue;
       }
 
       // Describe the custom emoji
       const description = await describeCustomEmojiImage({
-        imagePath: mediaPath,
+        imagePath: media.path,
         cfg,
         agentDir,
         agentId: route.agentId,
+        contentType: media.contentType,
       });
 
       if (description) {

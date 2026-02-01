@@ -624,26 +624,26 @@ export const buildTelegramMessageContext = async ({
     ForwardedDate: forwardOrigin?.date ? forwardOrigin.date * 1000 : undefined,
     Timestamp: msg.date ? msg.date * 1000 : undefined,
     WasMentioned: isGroup ? effectiveWasMentioned : undefined,
-    // Filter out cached stickers from media - their description is already in the message body
-    MediaPath: stickerCacheHit ? undefined : allMedia[0]?.path,
-    MediaType: stickerCacheHit ? undefined : allMedia[0]?.contentType,
-    MediaUrl: stickerCacheHit ? undefined : allMedia[0]?.path,
-    MediaPaths: stickerCacheHit
-      ? undefined
-      : allMedia.length > 0
-        ? allMedia.map((m) => m.path)
-        : undefined,
-    MediaUrls: stickerCacheHit
-      ? undefined
-      : allMedia.length > 0
-        ? allMedia.map((m) => m.path)
-        : undefined,
-    MediaTypes: stickerCacheHit
-      ? undefined
-      : allMedia.length > 0
-        ? (allMedia.map((m) => m.contentType).filter(Boolean) as string[])
-        : undefined,
-    Sticker: allMedia[0]?.stickerMetadata,
+    // Filter out entries with empty paths (e.g., cached custom emoji with no file)
+    ...(() => {
+      if (stickerCacheHit) {
+        return {};
+      }
+      const mediaWithPaths = allMedia.filter((m) => m.path);
+      const first = mediaWithPaths[0];
+      return {
+        MediaPath: first?.path,
+        MediaType: first?.contentType,
+        MediaUrl: first?.path,
+        MediaPaths: mediaWithPaths.length > 0 ? mediaWithPaths.map((m) => m.path) : undefined,
+        MediaUrls: mediaWithPaths.length > 0 ? mediaWithPaths.map((m) => m.path) : undefined,
+        MediaTypes:
+          mediaWithPaths.length > 0
+            ? (mediaWithPaths.map((m) => m.contentType).filter(Boolean) as string[])
+            : undefined,
+      };
+    })(),
+    Sticker: allMedia.find((m) => m.stickerMetadata)?.stickerMetadata,
     CustomEmojis: allMedia
       .map((m) => m.customEmojiMetadata)
       .filter((m): m is NonNullable<typeof m> => Boolean(m)),

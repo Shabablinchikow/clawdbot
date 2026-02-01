@@ -144,6 +144,7 @@ export interface DescribeCustomEmojiParams {
   cfg: OpenClawConfig;
   agentDir?: string;
   agentId?: string;
+  contentType?: string;
 }
 
 /**
@@ -162,5 +163,6 @@ export async function describeCustomEmojiImage(
     prompt: CUSTOM_EMOJI_DESCRIPTION_PROMPT,
     fileName: "custom-emoji.webp",
     logPrefix: "telegram",
+    contentType: params.contentType,
   });
 }

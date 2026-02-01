@@ -21,6 +21,7 @@ export interface DescribeImageParams {
   prompt: string;
   fileName: string;
   logPrefix: string;
+  contentType?: string;
 }
 
 /**
@@ -28,8 +29,25 @@ export interface DescribeImageParams {
  * Auto-detects an available vision provider based on configured API keys.
  * Returns null if no vision provider is available.
  */
+function inferMimeFromPath(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "gif":
+      return "image/gif";
+    case "webp":
+      return "image/webp";
+    default:
+      return "image/webp";
+  }
+}
+
 export async function describeImageWithVision(params: DescribeImageParams): Promise<string | null> {
-  const { imagePath, cfg, agentDir, agentId, prompt, fileName, logPrefix } = params;
+  const { imagePath, cfg, agentDir, agentId, prompt, fileName, logPrefix, contentType } = params;
 
   const defaultModel = resolveDefaultModelForAgent({ cfg, agentId });
   let activeModel = undefined as { provider: string; model: string } | undefined;
@@ -115,10 +133,11 @@ export async function describeImageWithVision(params: DescribeImageParams): Prom
   try {
     const buffer = await fs.readFile(imagePath);
     const { describeImageWithModel } = await import("../media-understanding/providers/image.js");
+    const mime = contentType || inferMimeFromPath(imagePath);
     const result = await describeImageWithModel({
       buffer,
       fileName,
-      mime: "image/webp",
+      mime,
       prompt,
       cfg,
       agentDir: agentDir ?? "",
