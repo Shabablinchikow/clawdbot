@@ -46,13 +46,14 @@ import {
   buildTelegramGroupFrom,
   buildTelegramGroupPeerId,
   buildTypingThreadParams,
-  expandTextLinks,
+  expandEntities,
   normalizeForwardedContext,
   describeReplyTarget,
   extractTelegramLocation,
   hasBotMention,
   resolveTelegramForumThreadId,
 } from "./bot/helpers.js";
+import { extractCustomEmojiEntities, resolveCustomEmojis } from "./custom-emoji.js";
 
 type TelegramMediaRef = {
   path: string;
@@ -371,7 +372,23 @@ export const buildTelegramMessageContext = async ({
   const locationData = extractTelegramLocation(msg);
   const locationText = locationData ? formatLocationText(locationData) : undefined;
   const rawTextSource = msg.text ?? msg.caption ?? "";
-  const rawText = expandTextLinks(rawTextSource, msg.entities ?? msg.caption_entities).trim();
+  const entities = msg.entities ?? msg.caption_entities;
+
+  // Resolve custom emoji info for text expansion (if any)
+  let resolvedEmojis: Map<string, { emoji: string; setName?: string }> | undefined;
+  const customEmojiEntities = extractCustomEmojiEntities(entities);
+  if (customEmojiEntities.length > 0) {
+    try {
+      const emojiIds = customEmojiEntities.map((e) => e.custom_emoji_id);
+      resolvedEmojis = await resolveCustomEmojis(bot, emojiIds);
+    } catch (err) {
+      logVerbose(`Failed to resolve custom emojis: ${String(err)}`);
+    }
+  }
+
+  // Expand text_link and custom_emoji entities in a single pass to preserve offsets
+  const rawText = expandEntities(rawTextSource, entities, resolvedEmojis).trim();
+
   let rawBody = [rawText, locationText].filter(Boolean).join("\n").trim();
   if (!rawBody) {
     rawBody = placeholder;
