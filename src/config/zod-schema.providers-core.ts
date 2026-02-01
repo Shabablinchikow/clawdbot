@@ -140,6 +140,8 @@ export const TelegramAccountSchemaBase = z
     heartbeat: ChannelHeartbeatVisibilitySchema,
     linkPreview: z.boolean().optional(),
     responsePrefix: z.string().optional(),
+    stickerVision: z.boolean().optional(),
+    customEmojiVision: z.boolean().optional(),
   })
   .strict();
 

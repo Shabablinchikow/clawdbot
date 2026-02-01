@@ -30,6 +30,11 @@ import {
   buildTelegramParentPeer,
   resolveTelegramForumThreadId,
 } from "./bot/helpers.js";
+import {
+  extractCustomEmojiEntities,
+  resolveCustomEmojis,
+  downloadCustomEmojiFiles,
+} from "./custom-emoji.js";
 import { migrateTelegramGroupConfig } from "./group-migration.js";
 import { resolveTelegramInlineButtonsScope } from "./inline-buttons.js";
 import {
@@ -898,7 +903,17 @@ export const registerTelegramHandlers = ({
         return;
       }
 
-      const allMedia = media
+      const allMedia: Array<{
+        path: string;
+        contentType?: string;
+        stickerMetadata?: {
+          emoji?: string;
+          setName?: string;
+          fileId?: string;
+          fileUniqueId?: string;
+          cachedDescription?: string;
+        };
+      }> = media
         ? [
             {
               path: media.path,
@@ -907,6 +922,33 @@ export const registerTelegramHandlers = ({
             },
           ]
         : [];
+
+      // Download custom emoji files for AI analysis (requires customEmojiVision: true)
+      if (telegramCfg?.customEmojiVision) {
+        try {
+          const entities = msg.entities ?? msg.caption_entities;
+          const customEmojiEntities = extractCustomEmojiEntities(entities);
+          if (customEmojiEntities.length > 0) {
+            const emojiIds = customEmojiEntities.map((e) => e.custom_emoji_id);
+            const resolved = await resolveCustomEmojis(bot, emojiIds);
+            const emojiFiles = await downloadCustomEmojiFiles(
+              bot,
+              opts.token,
+              resolved,
+              mediaMaxBytes,
+              opts.proxyFetch,
+            );
+            for (const emoji of emojiFiles) {
+              if (emoji.filePath) {
+                allMedia.push({ path: emoji.filePath, contentType: emoji.contentType });
+              }
+            }
+          }
+        } catch (emojiErr) {
+          logVerbose(`Failed to download custom emoji files: ${String(emojiErr)}`);
+        }
+      }
+
       const senderId = msg.from?.id ? String(msg.from.id) : "";
       const conversationKey =
         resolvedThreadId != null ? `${chatId}:topic:${resolvedThreadId}` : String(chatId);

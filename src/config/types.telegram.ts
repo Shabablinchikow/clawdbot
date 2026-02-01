@@ -138,6 +138,10 @@ export type TelegramAccountConfig = {
    * Use `"auto"` to derive `[{identity.name}]` from the routed agent.
    */
   responsePrefix?: string;
+  /** Enable vision AI analysis for stickers. Default: false. */
+  stickerVision?: boolean;
+  /** Enable vision AI analysis for custom emoji in messages. Default: false (expensive). */
+  customEmojiVision?: boolean;
 };
 
 export type TelegramTopicConfig = {
