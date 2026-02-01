@@ -1,5 +1,4 @@
 import type { Bot } from "grammy";
-import type { MsgContext } from "../auto-reply/templating.js";
 import type { OpenClawConfig } from "../config/config.js";
 import type { DmPolicy, TelegramGroupConfig, TelegramTopicConfig } from "../config/types.js";
 import type { StickerMetadata, TelegramContext } from "./bot/types.js";
@@ -49,13 +48,14 @@ import {
   buildTelegramGroupPeerId,
   buildTelegramParentPeer,
   buildTypingThreadParams,
-  expandTextLinks,
+  expandEntities,
   normalizeForwardedContext,
   describeReplyTarget,
   extractTelegramLocation,
   hasBotMention,
   resolveTelegramThreadSpec,
 } from "./bot/helpers.js";
+import { extractCustomEmojiEntities, resolveCustomEmojis } from "./custom-emoji.js";
 
 export type TelegramMediaRef = {
   path: string;
@@ -203,21 +203,6 @@ export const buildTelegramMessageContext = async ({
     );
     return null;
   }
-
-  // Compute requireMention early for preflight transcription gating
-  const activationOverride = resolveGroupActivation({
-    chatId,
-    messageThreadId: resolvedThreadId,
-    sessionKey: sessionKey,
-    agentId: route.agentId,
-  });
-  const baseRequireMention = resolveGroupRequireMention(chatId);
-  const requireMention = firstDefined(
-    activationOverride,
-    topicConfig?.requireMention,
-    groupConfig?.requireMention,
-    baseRequireMention,
-  );
 
   const sendTyping = async () => {
     await withTelegramApiErrorLogging({
@@ -385,8 +370,23 @@ export const buildTelegramMessageContext = async ({
   const locationData = extractTelegramLocation(msg);
   const locationText = locationData ? formatLocationText(locationData) : undefined;
   const rawTextSource = msg.text ?? msg.caption ?? "";
-  const rawText = expandTextLinks(rawTextSource, msg.entities ?? msg.caption_entities).trim();
-  const hasUserText = Boolean(rawText || locationText);
+  const entities = msg.entities ?? msg.caption_entities;
+
+  // Resolve custom emoji info for text expansion (if any)
+  let resolvedEmojis: Map<string, { emoji: string; setName?: string }> | undefined;
+  const customEmojiEntities = extractCustomEmojiEntities(entities);
+  if (customEmojiEntities.length > 0) {
+    try {
+      const emojiIds = customEmojiEntities.map((e) => e.custom_emoji_id);
+      resolvedEmojis = await resolveCustomEmojis(bot, emojiIds);
+    } catch (err) {
+      logVerbose(`Failed to resolve custom emojis: ${String(err)}`);
+    }
+  }
+
+  // Expand text_link and custom_emoji entities in a single pass to preserve offsets
+  const rawText = expandEntities(rawTextSource, entities, resolvedEmojis).trim();
+
   let rawBody = [rawText, locationText].filter(Boolean).join("\n").trim();
   if (!rawBody) {
     rawBody = placeholder;
@@ -452,7 +452,6 @@ export const buildTelegramMessageContext = async ({
       isExplicitlyMentioned: explicitlyMentioned,
       canResolveExplicit: Boolean(botUsername),
     },
-    transcript: preflightTranscript,
   });
   const wasMentioned = options?.forceWasMentioned === true ? true : computedWasMentioned;
   if (isGroup && commandGate.shouldBlock) {
@@ -464,6 +463,19 @@ export const buildTelegramMessageContext = async ({
     });
     return null;
   }
+  const activationOverride = resolveGroupActivation({
+    chatId,
+    messageThreadId: resolvedThreadId,
+    sessionKey: sessionKey,
+    agentId: route.agentId,
+  });
+  const baseRequireMention = resolveGroupRequireMention(chatId);
+  const requireMention = firstDefined(
+    activationOverride,
+    topicConfig?.requireMention,
+    groupConfig?.requireMention,
+    baseRequireMention,
+  );
   // Reply-chain detection: replying to a bot message acts like an implicit mention.
   const botId = primaryCtx.me?.id;
   const replyFromId = msg.reply_to_message?.from?.id;

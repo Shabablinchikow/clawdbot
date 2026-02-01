@@ -146,6 +146,10 @@ export type TelegramAccountConfig = {
    * Telegram expects unicode emoji (e.g., "👀") rather than shortcodes.
    */
   ackReaction?: string;
+  /** Enable vision AI analysis for stickers. Default: false. */
+  stickerVision?: boolean;
+  /** Enable vision AI analysis for custom emoji in messages. Default: false (expensive). */
+  customEmojiVision?: boolean;
 };
 
 export type TelegramTopicConfig = {

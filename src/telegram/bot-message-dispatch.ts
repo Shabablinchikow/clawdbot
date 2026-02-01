@@ -188,8 +188,10 @@ export const dispatchTelegramMessage = async ({
 
   // Handle uncached stickers: get a dedicated vision description before dispatch
   // This ensures we cache a raw description rather than a conversational response
+  // Skip if stickerVision is not explicitly enabled (default: disabled)
+  const stickerVisionEnabled = telegramCfg?.stickerVision === true;
   const sticker = ctxPayload.Sticker;
-  if (sticker?.fileId && sticker.fileUniqueId && ctxPayload.MediaPath) {
+  if (stickerVisionEnabled && sticker?.fileId && sticker.fileUniqueId && ctxPayload.MediaPath) {
     const agentDir = resolveAgentDir(cfg, route.agentId);
     const stickerSupportsVision = await resolveStickerVisionSupport(cfg, route.agentId);
     let description = sticker.cachedDescription ?? null;
