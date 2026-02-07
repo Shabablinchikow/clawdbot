@@ -309,17 +309,25 @@ function resolvePerplexityConfig(search?: WebSearchConfig): PerplexityConfig {
 }
 
 function resolveKagiConfig(search?: WebSearchConfig): KagiConfig {
-  if (!search || typeof search !== "object") return {};
+  if (!search || typeof search !== "object") {
+    return {};
+  }
   const kagi = "kagi" in search ? search.kagi : undefined;
-  if (!kagi || typeof kagi !== "object") return {};
+  if (!kagi || typeof kagi !== "object") {
+    return {};
+  }
   return kagi as KagiConfig;
 }
 
 function resolveKagiApiKey(kagi?: KagiConfig): string | undefined {
   const fromConfig = normalizeApiKey(kagi?.apiKey);
-  if (fromConfig) return fromConfig;
+  if (fromConfig) {
+    return fromConfig;
+  }
   const fromEnv = normalizeApiKey(process.env.KAGI_API_KEY);
-  if (fromEnv) return fromEnv;
+  if (fromEnv) {
+    return fromEnv;
+  }
   return undefined;
 }
 
@@ -616,6 +624,56 @@ async function runKagiSearch(params: {
       Authorization: `Bot ${params.apiKey}`,
       Accept: "application/json",
     },
+    signal: withTimeout(undefined, params.timeoutSeconds * 1000),
+  });
+
+  if (!res.ok) {
+    const detail = await readResponseText(res);
+    throw new Error(`Kagi Search API error (${res.status}): ${detail || res.statusText}`);
+  }
+
+  const data = (await res.json()) as KagiSearchResponse;
+
+  if (data.error) {
+    throw new Error(`Kagi Search API error: ${data.error.msg || "Unknown error"}`);
+  }
+
+  // Extract search results (t=0)
+  const results: KagiSearchResultMapped[] = (data.data ?? [])
+    .filter((item) => item.t === 0)
+    .map((item) => {
+      const result: KagiSearchResultMapped = {
+        title: item.title ?? "",
+        url: item.url ?? "",
+        description: item.snippet ?? "",
+        published: item.published,
+        siteName: resolveSiteName(item.url),
+      };
+
+      // Include thumbnail if configured and present
+      if (params.includeThumbnails && item.thumbnail?.url) {
+        result.thumbnail = {
+          url: item.thumbnail.url,
+          width: item.thumbnail.width ?? undefined,
+          height: item.thumbnail.height ?? undefined,
+        };
+      }
+
+      return result;
+    });
+
+  // Extract related searches (t=1) if configured
+  let relatedSearches: string[] | undefined;
+  if (params.includeRelated) {
+    const relatedItem = (data.data ?? []).find((item) => item.t === 1);
+    if (relatedItem?.list && Array.isArray(relatedItem.list)) {
+      relatedSearches = relatedItem.list;
+    }
+  }
+
+  return { results, relatedSearches, apiBalance: data.meta?.api_balance };
+}
+
 async function runGrokSearch(params: {
   query: string;
   apiKey: string;
@@ -873,9 +931,9 @@ export function createWebSearchTool(options?: {
       ? "Search the web using Perplexity Sonar (direct or via OpenRouter). Returns AI-synthesized answers with citations from real-time web search."
       : provider === "kagi"
         ? "Search the web using Kagi Search API. Premium ad-free search with high-quality results. Returns titles, URLs, snippets, and optionally thumbnails and related searches."
-      : provider === "grok"
-        ? "Search the web using xAI Grok. Returns AI-synthesized answers with citations from real-time web search."
-        : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
+        : provider === "grok"
+          ? "Search the web using xAI Grok. Returns AI-synthesized answers with citations from real-time web search."
+          : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
 
   return {
     label: "Web Search",
@@ -891,9 +949,9 @@ export function createWebSearchTool(options?: {
           ? perplexityAuth?.apiKey
           : provider === "kagi"
             ? kagiApiKey
-          : provider === "grok"
-            ? resolveGrokApiKey(grokConfig)
-            : resolveSearchApiKey(search);
+            : provider === "grok"
+              ? resolveGrokApiKey(grokConfig)
+              : resolveSearchApiKey(search);
 
       if (!apiKey) {
         return jsonResult(missingSearchKeyPayload(provider));
