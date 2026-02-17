@@ -5,6 +5,8 @@ import type {
   ReactionTypeEmoji,
 } from "@grammyjs/types";
 import { type ApiClientOptions, Bot, HttpError, InputFile } from "grammy";
+import type { RetryConfig } from "../infra/retry.js";
+import type { TelegramInlineButtons } from "./button-types.js";
 import { loadConfig } from "../config/config.js";
 import { resolveMarkdownTableMode } from "../config/markdown-tables.js";
 import { logVerbose } from "../globals.js";
@@ -12,7 +14,6 @@ import { recordChannelActivity } from "../infra/channel-activity.js";
 import { isDiagnosticFlagEnabled } from "../infra/diagnostic-flags.js";
 import { formatErrorMessage, formatUncaughtError } from "../infra/errors.js";
 import { createTelegramRetryRunner } from "../infra/retry-policy.js";
-import type { RetryConfig } from "../infra/retry.js";
 import { redactSensitiveText } from "../logging/redact.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { mediaKindFromMime } from "../media/constants.js";
@@ -22,7 +23,6 @@ import { loadWebMedia } from "../web/media.js";
 import { type ResolvedTelegramAccount, resolveTelegramAccount } from "./accounts.js";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import { buildTelegramThreadParams } from "./bot/helpers.js";
-import type { TelegramInlineButtons } from "./button-types.js";
 import { splitTelegramCaption } from "./caption.js";
 import { resolveTelegramFetch } from "./fetch.js";
 import { renderTelegramHtmlText } from "./format.js";
@@ -193,6 +193,11 @@ function normalizeMessageId(raw: string | number): number {
 
 function isTelegramThreadNotFoundError(err: unknown): boolean {
   return THREAD_NOT_FOUND_RE.test(formatErrorMessage(err));
+}
+
+const QUOTE_TEXT_INVALID_RE = /QUOTE_TEXT_INVALID/i;
+function isTelegramQuoteTextInvalidError(err: unknown): boolean {
+  return QUOTE_TEXT_INVALID_RE.test(formatErrorMessage(err));
 }
 
 function isTelegramMessageNotModifiedError(err: unknown): boolean {
@@ -476,50 +481,69 @@ export async function sendMessageTelegram(
     params?: Record<string, unknown>,
     fallbackText?: string,
   ) => {
-    return await withTelegramThreadFallback(
-      params,
-      "message",
-      opts.verbose,
-      async (effectiveParams, label) => {
-        const htmlText = renderHtmlText(rawText);
-        const baseParams = effectiveParams ? { ...effectiveParams } : {};
-        if (linkPreviewOptions) {
-          baseParams.link_preview_options = linkPreviewOptions;
-        }
-        const hasBaseParams = Object.keys(baseParams).length > 0;
-        const sendParams = {
-          parse_mode: "HTML" as const,
-          ...baseParams,
-          ...(opts.silent === true ? { disable_notification: true } : {}),
-        };
-        return await withTelegramHtmlParseFallback({
-          label,
-          verbose: opts.verbose,
-          requestHtml: (retryLabel) =>
-            requestWithChatNotFound(
-              () =>
-                api.sendMessage(
-                  chatId,
-                  htmlText,
-                  sendParams as Parameters<typeof api.sendMessage>[2],
-                ),
-              retryLabel,
-            ),
-          requestPlain: (retryLabel) => {
-            const plainParams = hasBaseParams
-              ? (baseParams as Parameters<typeof api.sendMessage>[2])
-              : undefined;
-            return requestWithChatNotFound(
-              () =>
-                plainParams
-                  ? api.sendMessage(chatId, fallbackText ?? rawText, plainParams)
-                  : api.sendMessage(chatId, fallbackText ?? rawText),
-              retryLabel,
-            );
-          },
-        });
-      },
-    );
+    try {
+      return await withTelegramThreadFallback(
+        params,
+        "message",
+        opts.verbose,
+        async (effectiveParams, label) => {
+          const htmlText = renderHtmlText(rawText);
+          const baseParams = effectiveParams ? { ...effectiveParams } : {};
+          if (linkPreviewOptions) {
+            baseParams.link_preview_options = linkPreviewOptions;
+          }
+          const hasBaseParams = Object.keys(baseParams).length > 0;
+          const sendParams = {
+            parse_mode: "HTML" as const,
+            ...baseParams,
+            ...(opts.silent === true ? { disable_notification: true } : {}),
+          };
+          return await withTelegramHtmlParseFallback({
+            label,
+            verbose: opts.verbose,
+            requestHtml: (retryLabel) =>
+              requestWithChatNotFound(
+                () =>
+                  api.sendMessage(
+                    chatId,
+                    htmlText,
+                    sendParams as Parameters<typeof api.sendMessage>[2],
+                  ),
+                retryLabel,
+              ),
+            requestPlain: (retryLabel) => {
+              const plainParams = hasBaseParams
+                ? (baseParams as Parameters<typeof api.sendMessage>[2])
+                : undefined;
+              return requestWithChatNotFound(
+                () =>
+                  plainParams
+                    ? api.sendMessage(chatId, fallbackText ?? rawText, plainParams)
+                    : api.sendMessage(chatId, fallbackText ?? rawText),
+                retryLabel,
+              );
+            },
+          });
+        },
+      );
+    } catch (err) {
+      if (!isTelegramQuoteTextInvalidError(err) || !params?.reply_parameters) {
+        throw err;
+      }
+      if (opts.verbose) {
+        console.warn(
+          `telegram QUOTE_TEXT_INVALID; retrying with reply_to_message_id only: ${formatErrorMessage(err)}`,
+        );
+      }
+      // Retry with reply_to_message_id but without the quote
+      const retryParams = { ...params };
+      const replyMsgId = (retryParams.reply_parameters as { message_id?: number })?.message_id;
+      delete retryParams.reply_parameters;
+      if (replyMsgId != null) {
+        retryParams.reply_to_message_id = replyMsgId;
+      }
+      return await sendTelegramText(rawText, retryParams, fallbackText);
+    }
   };
 
   if (mediaUrl) {
