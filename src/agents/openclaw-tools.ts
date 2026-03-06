@@ -24,7 +24,12 @@ import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createSessionsYieldTool } from "./tools/sessions-yield-tool.js";
 import { createSubagentsTool } from "./tools/subagents-tool.js";
 import { createTtsTool } from "./tools/tts-tool.js";
-import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
+import {
+  createWebFetchTool,
+  createWebSearchTool,
+  createKagiFastGPTTool,
+  createKagiSummarizeTool,
+} from "./tools/web-tools.js";
 import { resolveWorkspaceRoot } from "./workspace-dir.js";
 
 export function createOpenClawTools(
@@ -120,6 +125,14 @@ export function createOpenClawTools(
     sandboxed: options?.sandboxed,
     runtimeFirecrawl: runtimeWebTools?.fetch.firecrawl,
   });
+  const kagiFastGPTTool = createKagiFastGPTTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
+  const kagiSummarizeTool = createKagiSummarizeTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
   const messageTool = options?.disableMessageTool
     ? null
     : createMessageTool({
@@ -212,6 +225,8 @@ export function createOpenClawTools(
     }),
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
+    ...(kagiFastGPTTool ? [kagiFastGPTTool] : []),
+    ...(kagiSummarizeTool ? [kagiSummarizeTool] : []),
     ...(imageTool ? [imageTool] : []),
     ...(pdfTool ? [pdfTool] : []),
   ];
