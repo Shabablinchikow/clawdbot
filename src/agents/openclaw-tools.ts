@@ -34,7 +34,12 @@ import { createSubagentsTool } from "./tools/subagents-tool.js";
 import { createTtsTool } from "./tools/tts-tool.js";
 import { createUpdatePlanTool } from "./tools/update-plan-tool.js";
 import { createVideoGenerateTool } from "./tools/video-generate-tool.js";
-import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
+import {
+  createWebFetchTool,
+  createWebSearchTool,
+  createKagiFastGPTTool,
+  createKagiSummarizeTool,
+} from "./tools/web-tools.js";
 import { resolveWorkspaceRoot } from "./workspace-dir.js";
 
 type OpenClawToolsDeps = {
@@ -193,6 +198,14 @@ export function createOpenClawTools(
     sandboxed: options?.sandboxed,
     runtimeWebFetch: runtimeWebTools?.fetch,
   });
+  const kagiFastGPTTool = createKagiFastGPTTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
+  const kagiSummarizeTool = createKagiSummarizeTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
   const messageTool = options?.disableMessageTool
     ? null
     : createMessageTool({
@@ -301,7 +314,7 @@ export function createOpenClawTools(
       config: resolvedConfig,
       sandboxed: options?.sandboxed,
     }),
-    ...collectPresentOpenClawTools([webSearchTool, webFetchTool, imageTool, pdfTool]),
+    ...collectPresentOpenClawTools([webSearchTool, webFetchTool, kagiFastGPTTool, kagiSummarizeTool, imageTool, pdfTool]),
   ];
 
   if (options?.disablePluginTools) {

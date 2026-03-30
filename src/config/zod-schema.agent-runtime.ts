@@ -332,6 +332,41 @@ export const ToolsWebSearchSchema = z
       })
       .strict()
       .optional(),
+    kagi: z
+      .object({
+        apiKey: SecretInputSchema.optional().register(sensitive),
+        baseUrl: z.string().optional(),
+        model: z.string().optional(),
+        includeThumbnails: z.boolean().optional(),
+        includeRelated: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .optional();
+
+export const ToolsKagiFastGPTSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    apiKey: z.string().optional().register(sensitive),
+    cache: z.boolean().optional(),
+    timeoutSeconds: z.number().int().positive().optional(),
+    cacheTtlMinutes: z.number().nonnegative().optional(),
+  })
+  .strict()
+  .optional();
+
+export const ToolsKagiSummarizerSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    apiKey: z.string().optional().register(sensitive),
+    engine: z.union([z.literal("cecil"), z.literal("agnes"), z.literal("muriel")]).optional(),
+    summaryType: z.union([z.literal("summary"), z.literal("takeaway")]).optional(),
+    targetLanguage: z.string().optional(),
+    cache: z.boolean().optional(),
+    timeoutSeconds: z.number().int().positive().optional(),
+    cacheTtlMinutes: z.number().nonnegative().optional(),
   })
   .strict()
   .optional();
@@ -388,6 +423,8 @@ export const ToolsWebSchema = z
     search: ToolsWebSearchSchema,
     fetch: ToolsWebFetchSchema,
     x_search: ToolsWebXSearchSchema,
+    fastgpt: ToolsKagiFastGPTSchema,
+    summarizer: ToolsKagiSummarizerSchema,
   })
   .strict()
   .optional();

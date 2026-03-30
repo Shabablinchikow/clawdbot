@@ -515,7 +515,53 @@ export type ToolsConfig = {
           timezone?: string;
         };
       };
+      /** @deprecated Legacy Brave scoped config. */
+      brave?: WebSearchLegacyProviderConfig;
+      /** @deprecated Legacy Firecrawl scoped config. */
+      firecrawl?: WebSearchLegacyProviderConfig;
+      /** @deprecated Legacy Gemini scoped config. */
+      gemini?: WebSearchLegacyProviderConfig;
+      /** @deprecated Legacy Grok scoped config. */
+      grok?: WebSearchLegacyProviderConfig;
+      /** @deprecated Legacy Kimi scoped config. */
+      kimi?: WebSearchLegacyProviderConfig;
+      /** @deprecated Legacy Perplexity scoped config. */
+      perplexity?: WebSearchLegacyProviderConfig;
+      /** @deprecated Legacy Kagi scoped config. */
+      kagi?: WebSearchLegacyProviderConfig;
     } & Record<string, unknown>;
+    /** Kagi FastGPT configuration (AI-powered answers with citations). */
+    fastgpt?: {
+      /** Enable Kagi FastGPT tool (default: true when API key is present). */
+      enabled?: boolean;
+      /** Kagi API key (defaults to KAGI_API_KEY env var). */
+      apiKey?: string;
+      /** Allow cached responses (default: true). */
+      cache?: boolean;
+      /** Timeout in seconds (default: 30). */
+      timeoutSeconds?: number;
+      /** Cache TTL in minutes for responses. */
+      cacheTtlMinutes?: number;
+    };
+    /** Kagi Universal Summarizer configuration. */
+    summarizer?: {
+      /** Enable Kagi Summarizer tool (default: true when API key is present). */
+      enabled?: boolean;
+      /** Kagi API key (defaults to KAGI_API_KEY env var). */
+      apiKey?: string;
+      /** Default summarization engine: cecil (fast), agnes (formal), muriel (enterprise). */
+      engine?: "cecil" | "agnes" | "muriel";
+      /** Default summary type: summary (prose) or takeaway (bullet points). */
+      summaryType?: "summary" | "takeaway";
+      /** Default target language code (e.g., "EN", "ES", "RU"). */
+      targetLanguage?: string;
+      /** Allow cached responses (default: true). */
+      cache?: boolean;
+      /** Timeout in seconds (default: 60). */
+      timeoutSeconds?: number;
+      /** Cache TTL in minutes for summaries. */
+      cacheTtlMinutes?: number;
+    };
     /** X (formerly Twitter) search tool configuration using xAI Grok. */
     x_search?: {
       /** Enable X search tool (default: true when xAI auth is available via plugin config or XAI_API_KEY). */

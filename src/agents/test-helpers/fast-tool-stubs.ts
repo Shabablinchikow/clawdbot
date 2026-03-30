@@ -30,6 +30,8 @@ vi.mock("../tools/video-generate-tool.js", () => ({
 vi.mock("../tools/web-tools.js", () => ({
   createWebSearchTool: () => null,
   createWebFetchTool: () => null,
+  createKagiFastGPTTool: () => null,
+  createKagiSummarizeTool: () => null,
 }));
 
 vi.mock("../../plugins/tools.js", () => ({
