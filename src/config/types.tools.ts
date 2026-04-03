@@ -515,20 +515,6 @@ export type ToolsConfig = {
           timezone?: string;
         };
       };
-      /** @deprecated Legacy Brave scoped config. */
-      brave?: WebSearchLegacyProviderConfig;
-      /** @deprecated Legacy Firecrawl scoped config. */
-      firecrawl?: WebSearchLegacyProviderConfig;
-      /** @deprecated Legacy Gemini scoped config. */
-      gemini?: WebSearchLegacyProviderConfig;
-      /** @deprecated Legacy Grok scoped config. */
-      grok?: WebSearchLegacyProviderConfig;
-      /** @deprecated Legacy Kimi scoped config. */
-      kimi?: WebSearchLegacyProviderConfig;
-      /** @deprecated Legacy Perplexity scoped config. */
-      perplexity?: WebSearchLegacyProviderConfig;
-      /** @deprecated Legacy Kagi scoped config. */
-      kagi?: WebSearchLegacyProviderConfig;
     } & Record<string, unknown>;
     /** Kagi FastGPT configuration (AI-powered answers with citations). */
     fastgpt?: {
